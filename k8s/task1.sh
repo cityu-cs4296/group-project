@@ -1,30 +1,33 @@
 #!/bin/bash
 
-# This script will create a pod in Kubernetes and measure the time it takes to start up
+# This script will create a deployment in Kubernetes and measure the time it takes to start up
 
-# Pre-pull the image to avoid network latency
-echo "Pre-pulling the image..."
-kubectl run nginx-kube --image=nginx --restart=Never
-kubectl delete pod nginx-kube
+# Function to calculate actual startup time
+calculate_actual_startup_time() {
+  kubeResult=$(kubectl get deployment task1-nginx-deployment -o json)
+  creationTime=$(date -d $(echo $kubeResult | jq -r '.metadata.creationTimestamp') +%s)
+  lastTransitionTime=$(echo $kubeResult | jq -r '.status.conditions[] | select(.type=="Available") | .lastTransitionTime')
+  lastTransitionTime=$(date -d $lastTransitionTime +%s)
+  actualStartTime=$((lastTransitionTime - creationTime))
+  echo "Actual startup time: $actualStartTime seconds (Via analyzing Kubernetes events)"
+}
 
-# Measure the time it takes to start up the pod
-echo ""
-echo "Measuring the time it takes to start up the pod..."
-start=$(date +%s)
-kubectl run nginx-kube --image=nginx
-kubectl wait --for=condition=ready pod -l run=nginx-kube
-end=$(date +%s)
-elapsedTime=$((end - start))
-echo "Kubernetes startup time: $elapsedTime seconds (Via bash script)"
+# Function to create deployment and measure startup time
+create_deployment() {
+  yamlFile=$1
+  echo "Creating the deployment from $yamlFile..."
+  start=$(date +%s)
+  kubectl apply -f $yamlFile
+  kubectl wait --for=condition=available deployment/task1-nginx-deployment --timeout=60s
+  end=$(date +%s)
+  elapsedTime=$((end - start))
+  echo "Kubernetes startup time: $elapsedTime seconds (Via bash script)"
+  calculate_actual_startup_time
+  echo "Cleaning up deployment..."
+  kubectl delete deployment task1-nginx-deployment
+}
 
-# Get the actual start time
-kubeResult=$(kubectl get pod nginx-kube -o json)
-creationTime=$(date -d $(echo $kubeResult | jq -r '.metadata.creationTimestamp') +%s)
-containerRunningTime=$(date -d $(echo $kubeResult | jq -r '.status.containerStatuses[0].state.running.startedAt') +%s)
-actualStartTime=$((containerRunningTime - creationTime))
-echo "Actual startup time: $actualStartTime seconds (Via analyzing Kubernetes events)"
-
-# Kill the pod after the test is done
-echo ""
-echo "Cleaning up..."
-kubectl delete pod nginx-kube
+# Create deployments and measure startup times
+create_deployment task1-1.yaml
+create_deployment task1-5.yaml
+create_deployment task1-10.yaml
