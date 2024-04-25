@@ -23,7 +23,7 @@ kubectl apply -f task3.yaml
 kubectl wait --for=condition=available deployment/task3-nginx-deployment --timeout=60s
 
 # Start the locust load generator
-locust --headless -t 60 -u 100 -r 100 -f ../common/locust_file.py -H http://$(kubectl get svc nginx-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}') --only-summary --csv=./logs/task3
+locust --headless -t 60 -u 100 -r 100 -f ../common/locust_file.py -H http://$(kubectl get svc nginx-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}') --only-summary --csv=./logs/task3 &
 
 # Keep monitoring the nodes and pods resources utilization
 # Stop when the locust test is done
