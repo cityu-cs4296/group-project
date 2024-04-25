@@ -12,7 +12,7 @@ locust --headless -t 60 -u 100 -r 100 -f ../common/locust_file.py -H http://$(ku
 # Keep monitoring the nodes and pods resources utilization
 # Stop when the locust test is done
 i = 0
-while [ $i -lt 60 ]; do
+while [ $i -lt 50 ]; do
     kubectl top nodes
     kubectl top pods
     sleep 5
