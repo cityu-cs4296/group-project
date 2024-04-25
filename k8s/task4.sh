@@ -1,15 +1,20 @@
+#!/bin/bash
+
 # Create configmap
-kubectl create configmap nginx-config --from-file=../common/nginx.conf --dry-run=client -o yaml | kubectl apply -f -
+./init.sh
 
 # Create nginx deployment
-kubectl apply -f task4.yaml
+sed 's/%POD_COUNT%/1/g' ./configs/deployment.yaml.tmpl | kubectl apply -f -
+kubectl apply -f ./configs/services.yaml
+kubectl apply -f ./configs/ingress.yaml
+kubectl apply -f ./configs/hpa.yaml
 
 # Wait until the deployment is ready
-kubectl wait --for=condition=available deployment/task4-nginx-deployment --timeout=120s
+kubectl wait --for=condition=available deployment/nginx-deployment -n cs4296-project --timeout=120s
 
 # Wait until the HPA is ready
 while true; do
-    hpaStatus=$(kubectl get hpa task4-nginx-deployment-hpa -o=jsonpath='{.status.currentMetrics[0].resource.current}')
+    hpaStatus=$(kubectl get hpa nginx-deployment-hpa -n cs4296-project -o=jsonpath='{.status.currentMetrics[0].resource.current}')
     if [[ -n "$hpaStatus" ]]; then
         echo "HPA can now read the metrics."
         break
@@ -19,7 +24,12 @@ while true; do
 done
 
 # Start the locust load generator
-serviceHostname=$(kubectl get svc nginx-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+serviceHostname=$(kubectl get svc nginx-service -n cs4296-project -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+while [ -z "$serviceHostname" ]; do
+  echo "[$(date +"%Y-%m-%d %H:%M:%S")] Waiting for the load balancer to be ready..."
+  sleep 5
+  serviceHostname=$(kubectl get svc nginx-service -n cs4296-project -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+done
 locust --headless -t 60 -u 100 -r 100 -f ../common/locust_file.py -H http://$serviceHostname --only-summary --csv=./logs/task4 &
 locustStartTime=$(date +'%Y-%m-%d %H:%M:%S.%3N')
 
@@ -28,15 +38,15 @@ locustStartTime=$(date +'%Y-%m-%d %H:%M:%S.%3N')
 i=0
 while (( i < 60 )); do
     echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Monitoring HPA..."
-    kubectl get hpa task4-nginx-deployment-hpa
+    kubectl get hpa nginx-deployment-hpa -n cs4296-project
     sleep 2
     ((i+=2))
 done
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] List of pods:"
-kubectl get pods
+kubectl get pods -n cs4296-project
 
-scaledOutPods=$(kubectl get pods -o jsonpath='{.items[*].metadata.name}')
+scaledOutPods=$(kubectl get pods -n cs4296-project -o jsonpath='{.items[*].metadata.name}')
 scaledOutPodsArray=($scaledOutPods)
 scaledOutPodsCount=${#scaledOutPodsArray[@]}
 echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Initial number of pods: 1"
@@ -48,9 +58,9 @@ podCreationTimeList=()
 for pod in "${scaledOutPodsArray[@]}"; do
     echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Describing pod: $pod"
     # Get the creation time of the pod
-    podCreationTime=$(kubectl get pod $pod -o jsonpath='{.metadata.creationTimestamp}')
+    podCreationTime=$(kubectl get pod -n cs4296-project $pod -o jsonpath='{.metadata.creationTimestamp}')
     # Get the status.conditions[*] with status.conditions[*].type = Ready
-    podReadyTime=$(kubectl get pod $pod -o jsonpath='{.status.conditions[?(@.type=="Ready")].lastTransitionTime}')
+    podReadyTime=$(kubectl get pod -n cs4296-project $pod -o jsonpath='{.status.conditions[?(@.type=="Ready")].lastTransitionTime}')
 
     echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Pod creation time: $podCreationTime"
     echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Pod ready time: $podReadyTime"
@@ -81,4 +91,4 @@ done
 
 # Describe the HPA
 echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Describing HPA..."
-kubectl describe hpa task4-nginx-deployment-hpa
+kubectl describe hpa nginx-deployment-hpa -n cs4296-project
