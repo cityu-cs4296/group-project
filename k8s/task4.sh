@@ -23,7 +23,7 @@ locust --headless -t 60 -u 100 -r 100 -f ../common/locust_file.py -H http://$hos
 
 # Keep Monitoring the HPA to check when it scales the pods
 # Stop when the locust test is done
-i = 0
+i=0
 while [ $i -lt 60 ]; do
     kubectl get hpa task4-nginx-deployment-hpa
     sleep 2
