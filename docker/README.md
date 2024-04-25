@@ -22,10 +22,10 @@ Resource usage of 10 containers
 ## Task 3: Load Balancing Efficiency
 The result of load balancing
 We have used locust.io to create a 100 user traffic/second to our server, 
-![alt text](image-1.png)
-The result of our 10 containers have average 1.5% of cpu usage,
+![locust cmd](image-3.png)
+The result of our 10 containers have average 5%-6% of cpu usage,
 and you can see from the graph, the traffic are balancely loaded between replicate.
-![load balacing result](image.png)
+![load balacing result](image-2.png)
 
 ## Task 4: Failure Recovery Time
 Demostrate response time of starting a container when one is failed.
