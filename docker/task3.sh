@@ -1,9 +1,11 @@
+# go to the locust machine, need to prepare the locustfile.py first
 pip3 install locust
+locust --headless --users 1000 --spawn-rate 10 -H http://{public-ip-of-docker}
+
+# go to the docker machine
+# get the public IP of the docker machine 
+curl http://checkip.amazonaws.com
+# output: e.g. 54.210.17.24
 
 sudo docker service create --name nginx_demo_10 --replicas 10 -p 80:80 nginx:latest
-
-# locust --headless --users 10 --spawn-rate 1 -H http://$(echo curl http://checkip.amazonaws.com)
-
-locust --headless --users 10 --spawn-rate 1 -H http://54.210.17.24
-
 sudo docker stats
