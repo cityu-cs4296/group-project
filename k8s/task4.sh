@@ -21,6 +21,7 @@ done
 # Start the locust load generator
 serviceHostname=$(kubectl get svc nginx-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 locust --headless -t 60 -u 100 -r 100 -f ../common/locust_file.py -H http://$serviceHostname --only-summary --csv=./logs/task4 &
+locustStartTime=$(date +'%Y-%m-%d %H:%M:%S.%3N')
 
 # Keep Monitoring the HPA to check when it scales the pods
 # Stop when the locust test is done
@@ -43,6 +44,7 @@ echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Scaled-out number of pods: $scaledOutPo
 
 # Loop through the pods and find out when the new pods are created
 totalTimeTaken=0
+podCreationTimeList=()
 for pod in "${scaledOutPodsArray[@]}"; do
     echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Describing pod: $pod"
     # Get the creation time of the pod
@@ -60,9 +62,22 @@ for pod in "${scaledOutPodsArray[@]}"; do
     timeTaken=$((podReadyTime-podCreationTime))
     echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Time taken for pod to be ready: $timeTaken seconds"
     totalTimeTaken=$((totalTimeTaken+timeTaken))
+    # Store the YYYY-MM-DDTHH:MM:SS.3N time format
+    podCreationTimeList+=( "$(date -d@$podCreationTime +'%Y-%m-%d %H:%M:%S.%3N')" )
 done
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Total time taken for all pods to be ready: $totalTimeTaken seconds"
+
+# Calculate the average time taken for the pods to be ready
+averageTimeTaken=$((totalTimeTaken/scaledOutPodsCount))
+echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Average time taken for pods to be ready: $averageTimeTaken seconds"
+
+# List out the pod creation times
+# List out the time that each pod was created
+echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Load generator test started at: $locustStartTime"
+for podCreationTime in "${podCreationTimeList[@]}"; do
+    echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] HPA Scaled Pod creation time: $podCreationTime"
+done
 
 # Describe the HPA
 echo "[$(date +'%Y-%m-%d %H:%M:%S.%3N')] Describing HPA..."

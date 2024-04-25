@@ -21,6 +21,7 @@ while ($true) {
 # Start the locust load generator
 $serviceHostname = kubectl get svc nginx-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 Start-Process -NoNewWindow -FilePath "locust" -ArgumentList "--headless -t 60 -u 100 -r 100 -f ../common/locust_file.py -H http://$serviceHostname --only-summary --csv=./logs/task4"
+$locustStartTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
 
 # Keep Monitoring the HPA to check when it scales the pods
 # Stop when the locust test is done
@@ -40,6 +41,8 @@ $scaledOutPodsArray = $scaledOutPods -split " "
 $scaledOutPodsCount = $scaledOutPodsArray.Length
 Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")] Initial number of pods: 1"
 Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")] Scaled-out number of pods: $scaledOutPodsCount"
+# Set a list to store the creation time of the pods
+$podCreationTimeList = @()
 # Loop through the pods and find out when the new pods are created
 $totalTImeTaken = 0
 foreach ($pod in $scaledOutPodsArray) {
@@ -59,9 +62,20 @@ foreach ($pod in $scaledOutPodsArray) {
     $timeTaken = $podReadyTime - $podCreationTime
     Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")] Time taken for pod to be ready: $timeTaken"
     $totalTImeTaken += $timeTaken.TotalSeconds
+    $podCreationTimeList += $podCreationTime
 }
 
 Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")] Total time taken for all pods to be ready: $totalTImeTaken seconds"
+
+# Calculate the average time taken for the pods to be ready
+$averageTimeTaken = $totalTImeTaken / $scaledOutPodsCount
+Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")] Average time taken for pods to be ready: $averageTimeTaken seconds"
+
+# List out the time that each pod was created
+Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")] Load generator test started at: $($locustStartTime)"
+foreach ($podCreationTime in $podCreationTimeList) {
+    Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")] HPA Scaled Pod creation time: $podCreationTime"
+}
 
 # Describe the HPA
 Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")] Describing HPA..."
