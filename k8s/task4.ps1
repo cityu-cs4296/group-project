@@ -39,7 +39,7 @@ $scaledOutPods = kubectl get pods -o jsonpath='{.items[*].metadata.name}'
 $scaledOutPodsArray = $scaledOutPods -split " "
 $scaledOutPodsCount = $scaledOutPodsArray.Length
 Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")] Initial number of pods: 1"
-Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")] Scaled-out number of pods: $scaledOutPods"
+Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")] Scaled-out number of pods: $scaledOutPodsCount"
 # Loop through the pods and find out when the new pods are created
 $totalTImeTaken = 0
 foreach ($pod in $scaledOutPodsArray) {
